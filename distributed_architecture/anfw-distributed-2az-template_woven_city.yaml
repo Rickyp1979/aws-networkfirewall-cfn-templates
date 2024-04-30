@@ -10,24 +10,40 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Woven City Baseline VPC"
 
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "VPC Parameters"
+        Parameters: 
+          - AvailabilityZone1Selection
+          - AvailabilityZone2Selection 
+          - VpcName
+          - VpcCidr     
+      # - Label:
+      #     default: "EC2 Parameters"
+      #   Parameters: 
+      #     - LatestAmiId
 
 Parameters:
   VpcCidr:
     Description: CIDR Block for the VPC
     Type: String
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{2})"
+  VpcName:
+    Description: Name for this VPC
+    Type: string
 
 
+  AvailabilityZone1Selection:
+    Description: Availability Zone 1
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
 
-  # AvailabilityZone1Selection:
-  #   Description: Availability Zone 1
-  #   Type: AWS::EC2::AvailabilityZone::Name
-  #   Default: us-east-1a
-
-  # AvailabilityZone2Selection:
-  #   Description: Availability Zone 2
-  #   Type: AWS::EC2::AvailabilityZone::Name
-  #   Default: us-east-1b
+  AvailabilityZone2Selection:
+    Description: Availability Zone 2
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1b
 
   # LatestAmiId:
   #   Description: Latest EC2 AMI from Systems Manager Parameter Store
@@ -37,7 +53,7 @@ Parameters:
 Resources:
 
 # VPC:
-  SpokeVpcA:
+  Vpc:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref VpcCidr
@@ -54,13 +70,13 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-spokevpca-igw"
+          Value: !Sub "${VpcName}-Vpc-igw"
 
   AttachInternetGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId:
-        !Ref SpokeVpcA
+        !Ref Vpc
       InternetGatewayId:
         !Ref InternetGateway
 
@@ -87,7 +103,7 @@ Resources:
       SubnetId: !Ref PublicSubnet1
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-spokevpca-natgw-1"
+          Value: !Sub "${VpcName}-Vpc-natgw-1"
 
   NatGw2:
     Type: AWS::EC2::NatGateway
@@ -101,167 +117,167 @@ Resources:
       SubnetId: !Ref PublicSubnet2
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-spokevpca-natgw-2"
+          Value: !Sub "${VpcName}-Vpc-natgw-2"
 
 # Private Subnets for Test Instances:
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
-        Ref: SpokeVpcA
-      CidrBlock: "10.1.0.0/24"
+        Ref: Vpc
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCidr, 2, 9]]     
       AvailabilityZone:
         Ref: AvailabilityZone1Selection
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-private-subnet-1"
+          Value: !Sub "${Vpcname}-private-subnet-1"
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
-        Ref: SpokeVpcA
-      CidrBlock: "10.1.2.0/24"
+        Ref: Vpc
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCidr, 2, 9]]
       AvailabilityZone:
         Ref: AvailabilityZone2Selection
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-private-subnet-2"
+          Value: !Sub "${Vpcname}-private-subnet-2"
 
 # Public Subnets for NAT GWs:
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
-        Ref: SpokeVpcA
-      CidrBlock: "10.1.1.0/24"
+        Ref: Vpc
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCidr, 2, 6]]
       AvailabilityZone:
         Ref: AvailabilityZone1Selection
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-public-subnet-1"
+          Value: !Sub "${Vpcname}-public-subnet-1"
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
-        Ref: SpokeVpcA
-      CidrBlock: "10.1.3.0/24"
+        Ref: Vpc
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCidr, 2, 6]]
       AvailabilityZone:
         Ref: AvailabilityZone2Selection
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-public-subnet-2"
+          Value: !Sub "${Vpcname}-public-subnet-2"
 
 # Firewall Subnets for firewall endpoints:
   FirewallSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
-        Ref: SpokeVpcA
-      CidrBlock: "10.1.16.0/28"
+        Ref: Vpc
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCidr, 2, 4]]
       AvailabilityZone:
         Ref: AvailabilityZone1Selection
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-firewall-subnet-1"
+          Value: !Sub "${Vpcname}-firewall-subnet-1"
 
   FirewallSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId:
-        Ref: SpokeVpcA
-      CidrBlock: "10.1.16.16/28"
+        Ref: Vpc
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCidr, 2, 4]]
       AvailabilityZone:
         Ref: AvailabilityZone2Selection
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-firewall-subnet-2"
+          Value: !Sub "${Vpcname}-firewall-subnet-2"
 
 # AWS PrivateLink interface endpoint for services:
-  SpokeVpcAEndpointSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-        GroupDescription: Allow instances to get to SSM Systems Manager
-        VpcId: !Ref SpokeVpcA
-        SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 10.1.0.0/16
-        Tags:
-          - Key: Name
-            Value: !Sub "${AWS::StackName}-vpce-sg-1"          
+  # VpcEndpointSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #       GroupDescription: Allow instances to get to SSM Systems Manager
+  #       VpcId: !Ref Vpc
+  #       SecurityGroupIngress:
+  #       - IpProtocol: tcp
+  #         FromPort: 443
+  #         ToPort: 443
+  #         CidrIp: 10.1.0.0/16
+  #       Tags:
+  #         - Key: Name
+  #           Value: !Sub "${AWS::StackName}-vpce-sg-1"          
 
-  SpokeVpcASSMEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties: 
-        PrivateDnsEnabled: true
-        SecurityGroupIds: 
-          - !Ref SpokeVpcAEndpointSecurityGroup
-        ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
-        SubnetIds: 
-          - !Ref PublicSubnet1
-          - !Ref PublicSubnet2
-        VpcEndpointType: Interface
-        VpcId: !Ref SpokeVpcA
+  # VpcSSMEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties: 
+  #       PrivateDnsEnabled: true
+  #       SecurityGroupIds: 
+  #         - !Ref VpcEndpointSecurityGroup
+  #       ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+  #       SubnetIds: 
+  #         - !Ref PublicSubnet1
+  #         - !Ref PublicSubnet2
+  #       VpcEndpointType: Interface
+  #       VpcId: !Ref Vpc
 
-  SpokeVpcAEC2MessagesEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties: 
-        PrivateDnsEnabled: true
-        SecurityGroupIds: 
-          - !Ref SpokeVpcAEndpointSecurityGroup
-        ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
-        SubnetIds: 
-          - !Ref PublicSubnet1
-          - !Ref PublicSubnet2
-        VpcEndpointType: Interface
-        VpcId: !Ref SpokeVpcA
+  # VpcEC2MessagesEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties: 
+  #       PrivateDnsEnabled: true
+  #       SecurityGroupIds: 
+  #         - !Ref VpcEndpointSecurityGroup
+  #       ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+  #       SubnetIds: 
+  #         - !Ref PublicSubnet1
+  #         - !Ref PublicSubnet2
+  #       VpcEndpointType: Interface
+  #       VpcId: !Ref Vpc
 
-  SpokeVpcASSMMessagesEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties: 
-        PrivateDnsEnabled: true
-        SecurityGroupIds: 
-          - !Ref SpokeVpcAEndpointSecurityGroup
-        ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
-        SubnetIds: 
-          - !Ref PublicSubnet1
-          - !Ref PublicSubnet2
-        VpcEndpointType: Interface
-        VpcId: !Ref SpokeVpcA
+  # VpcSSMMessagesEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties: 
+  #       PrivateDnsEnabled: true
+  #       SecurityGroupIds: 
+  #         - !Ref VpcEndpointSecurityGroup
+  #       ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+  #       SubnetIds: 
+  #         - !Ref PublicSubnet1
+  #         - !Ref PublicSubnet2
+  #       VpcEndpointType: Interface
+  #       VpcId: !Ref Vpc
 
 # SSM Role:
-  SubnetRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub "${AWS::StackName}-subnet-role"
-      Path: "/"
-      ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - sts:AssumeRole
+  # SubnetRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     RoleName: !Sub "${AWS::StackName}-subnet-role"
+  #     Path: "/"
+  #     ManagedPolicyArns:
+  #       - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+  #     AssumeRolePolicyDocument:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service:
+  #               - ec2.amazonaws.com
+  #           Action:
+  #             - sts:AssumeRole
 
-  SubnetInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: "/"
-      Roles:
-        - !Ref SubnetRole
+  # SubnetInstanceProfile:
+  #   Type: AWS::IAM::InstanceProfile
+  #   Properties:
+  #     Path: "/"
+  #     Roles:
+  #       - !Ref SubnetRole
 
 # Fn::GetAtt for Firewall do not return VPCE Id in ordered format.
 # For more details refer to: https://github.com/aws-cloudformation/aws-cloudformation-resource-providers-networkfirewall/issues/15
@@ -361,69 +377,69 @@ Resources:
       ServiceToken: !GetAtt RetrieveVpceId.Arn
       Az1: !Ref AvailabilityZone1Selection
       Az2: !Ref AvailabilityZone2Selection
-      FwArn: !Ref SpokeVpcAFirewall
+      FwArn: !Ref VpcFirewall
 
 # Testing Security Group:
-  SubnetSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: "ICMP acess from 10.0.0.0/8"
-      GroupName: !Sub "${AWS::StackName}-test-instance-sec-group"
-      VpcId: !Ref SpokeVpcA
-      SecurityGroupIngress:
-        - IpProtocol: icmp
-          CidrIp: 10.0.0.0/8
-          FromPort: "-1"
-          ToPort: "-1"
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-test-sg-1"                
+  # SubnetSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: "ICMP acess from 10.0.0.0/8"
+  #     GroupName: !Sub "${AWS::StackName}-test-instance-sec-group"
+  #     VpcId: !Ref Vpc
+  #     SecurityGroupIngress:
+  #       - IpProtocol: icmp
+  #         CidrIp: 10.0.0.0/8
+  #         FromPort: "-1"
+  #         ToPort: "-1"
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub "${AWS::StackName}-test-sg-1"                
 
 # Test Instances:
-  TestInstance1:
-    Type: 'AWS::EC2::Instance'
-    Properties:
-      ImageId: !Ref LatestAmiId
-      SubnetId: !Ref PrivateSubnet1
-      InstanceType: t2.micro
-      SecurityGroupIds:
-        - !Ref SubnetSecurityGroup
-      IamInstanceProfile: !Ref SubnetInstanceProfile
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-test-instance-1"
+  # TestInstance1:
+  #   Type: 'AWS::EC2::Instance'
+  #   Properties:
+  #     ImageId: !Ref LatestAmiId
+  #     SubnetId: !Ref PrivateSubnet1
+  #     InstanceType: t2.micro
+  #     SecurityGroupIds:
+  #       - !Ref SubnetSecurityGroup
+  #     IamInstanceProfile: !Ref SubnetInstanceProfile
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub "${AWS::StackName}-test-instance-1"
 
-  TestInstance2:
-    Type: 'AWS::EC2::Instance'
-    Properties:
-      ImageId: !Ref LatestAmiId
-      SubnetId: !Ref PrivateSubnet2
-      InstanceType: t2.micro
-      SecurityGroupIds:
-        - !Ref SubnetSecurityGroup
-      IamInstanceProfile: !Ref SubnetInstanceProfile
-      Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}-test-instance-2"
+  # TestInstance2:
+  #   Type: 'AWS::EC2::Instance'
+  #   Properties:
+  #     ImageId: !Ref LatestAmiId
+  #     SubnetId: !Ref PrivateSubnet2
+  #     InstanceType: t2.micro
+  #     SecurityGroupIds:
+  #       - !Ref SubnetSecurityGroup
+  #     IamInstanceProfile: !Ref SubnetInstanceProfile
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub "${AWS::StackName}-test-instance-2"
 
 # AWS Network Firewall:
-  SpokeVpcAFirewall:
+  VpcFirewall:
     Type: AWS::NetworkFirewall::Firewall
     Properties:
-      FirewallName: !Sub "${AWS::StackName}-firewall"
+      FirewallName: !Sub "${Vpcname}-firewall"
       FirewallPolicyArn: !Ref EgressFirewallPolicy
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       SubnetMappings:
         - SubnetId: !Ref FirewallSubnet1
         - SubnetId: !Ref FirewallSubnet2
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-firewall"
+          Value: !Sub "${Vpcname}-firewall"
 
   ICMPAlertStatefulRuleGroup:
     Type: 'AWS::NetworkFirewall::RuleGroup'
     Properties:
-      RuleGroupName: !Sub "${AWS::StackName}-icmp-alert"
+      RuleGroupName: !Sub "${Vpcname}-icmp-alert"
       Type: STATEFUL
       Capacity: 100
       RuleGroup:
@@ -465,12 +481,12 @@ Resources:
             GeneratedRulesType: "ALLOWLIST"
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-domain-allow"   
+          Value: !Sub "${Vpcname}-domain-allow"   
 
   EgressFirewallPolicy:
     Type: AWS::NetworkFirewall::FirewallPolicy
     Properties:
-      FirewallPolicyName: !Sub "${AWS::StackName}-firewall-policy"
+      FirewallPolicyName: !Sub "${Vpcname}-firewall-policy"
       FirewallPolicy:
         StatelessDefaultActions:
           - 'aws:forward_to_sfe'
@@ -482,41 +498,41 @@ Resources:
 
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-firewall-policy"
+          Value: !Sub "${Vpcname}-firewall-policy"
 
-  SpokeVpcAFirewallLogFlowGroup:
+  VpcFirewallLogFlowGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/anfw/flow"
+      LogGroupName: !Sub "/${Vpcname}/anfw/flow"
 
-  SpokeVpcAFirewallLogAlertGroup:
+  VpcFirewallLogAlertGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/anfw/alert"
+      LogGroupName: !Sub "/${Vpcname}/anfw/alert"
 
-  SpokeVpcAFirewallLog:
+  VpcFirewallLog:
     Type: AWS::NetworkFirewall::LoggingConfiguration
     Properties:
-      FirewallArn: !Ref SpokeVpcAFirewall
+      FirewallArn: !Ref VpcFirewall
       LoggingConfiguration:
         LogDestinationConfigs:
           - LogType: FLOW
             LogDestinationType: CloudWatchLogs
             LogDestination:
-              logGroup: !Sub "/${AWS::StackName}/anfw/flow"
+              logGroup: !Sub "/${Vpcname}/anfw/flow"
           - LogType: ALERT
             LogDestinationType: CloudWatchLogs
             LogDestination:
-              logGroup: !Sub "/${AWS::StackName}/anfw/alert"
+              logGroup: !Sub "/${Vpcname}/anfw/alert"
 
 # Private Route Tables:
   PrivateRtb1:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-private-route-table-1"
+          Value: !Sub "${Vpcname}-private-route-table-1"
 
   PrivateRtb1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -536,10 +552,10 @@ Resources:
   PrivateRtb2:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-private-route-table-2"
+          Value: !Sub "${Vpcname}-private-route-table-2"
 
   PrivateRtb2Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -560,10 +576,10 @@ Resources:
   PublicRtb1:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-public-route-table-1"
+          Value: !Sub "${Vpcname}-public-route-table-1"
 
   PublicRtb1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -574,7 +590,7 @@ Resources:
 
   PublicRtb1DefaultRoute:
     Type: AWS::EC2::Route
-    DependsOn: SpokeVpcAFirewall
+    DependsOn: VpcFirewall
     Properties:
       DestinationCidrBlock: "0.0.0.0/0"
       VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId1
@@ -583,10 +599,10 @@ Resources:
   PublicRtb2:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-public-route-table-2"
+          Value: !Sub "${Vpcname}-public-route-table-2"
 
   PublicRtb2Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -597,7 +613,7 @@ Resources:
 
   PublicRtb2DefaultRoute:
     Type: AWS::EC2::Route
-    DependsOn: SpokeVpcAFirewall
+    DependsOn: VpcFirewall
     Properties:
       DestinationCidrBlock: "0.0.0.0/0"
       VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId2
@@ -607,10 +623,10 @@ Resources:
   FirewallRtb1:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-firewall-route-table-1"
+          Value: !Sub "${Vpcname}-firewall-route-table-1"
 
   FirewallRtb1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -630,10 +646,10 @@ Resources:
   FirewallRtb2:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-firewall-route-table-2"
+          Value: !Sub "${Vpcname}-firewall-route-table-2"
 
   FirewallRtb2Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -654,10 +670,10 @@ Resources:
   IngressRtb:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref SpokeVpcA
+      VpcId: !Ref Vpc
       Tags:
         - Key: Name
-          Value: !Sub "${AWS::StackName}-ingress-route-table"
+          Value: !Sub "${Vpcname}-ingress-route-table"
   
   IngressRtbAssociation:
     Type: AWS::EC2::GatewayRouteTableAssociation
@@ -668,7 +684,7 @@ Resources:
       
   IngressRtbPublicSubnet1Route:
     Type: AWS::EC2::Route
-    DependsOn: SpokeVpcAFirewall
+    DependsOn: VpcFirewall
     Properties:
       DestinationCidrBlock: "10.1.1.0/24"
       VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId1
@@ -676,7 +692,7 @@ Resources:
 
   IngressRtbPublicSubnet2Route:
     Type: AWS::EC2::Route
-    DependsOn: SpokeVpcAFirewall
+    DependsOn: VpcFirewall
     Properties:
       DestinationCidrBlock: "10.1.3.0/24"
       VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId2
