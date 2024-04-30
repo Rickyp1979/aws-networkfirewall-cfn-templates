@@ -686,7 +686,7 @@ Resources:
     Type: AWS::EC2::Route
     DependsOn: VpcFirewall
     Properties:
-      DestinationCidrBlock: "10.1.1.0/24"
+      DestinationCidrBlock: !GetAtt PublicSubnet1.CidrBlock
       VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId1
       RouteTableId: !Ref IngressRtb
 
@@ -694,6 +694,6 @@ Resources:
     Type: AWS::EC2::Route
     DependsOn: VpcFirewall
     Properties:
-      DestinationCidrBlock: "10.1.3.0/24"
+      DestinationCidrBlock: !GetAtt PublicSubnet2.CidrBlock
       VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId2
       RouteTableId: !Ref IngressRtb
